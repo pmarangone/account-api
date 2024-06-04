@@ -7,7 +7,7 @@ from src.utils import response
 router = APIRouter(prefix="/event")
 
 
-@router.post("/")
+@router.post("")
 def event(event: EventSchema = Body(...)):
     match event.type:
         # TODO: handle invalid values types

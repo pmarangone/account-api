@@ -6,7 +6,7 @@ from src.utils import response
 router = APIRouter(prefix="/balance")
 
 
-@router.get("/")
+@router.get("")
 def read_balance(account_id: int = Query(...)):
     account_id_formatted = str(account_id)
     if db_wrapper.contains_account(account_id_formatted):
