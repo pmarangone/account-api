@@ -27,7 +27,19 @@ def not_found(body):
     )
 
 
+def created(body):
+    return JSONResponse(
+        content=jsonable_encoder(body),
+        status_code=fastapi.status.HTTP_201_CREATED,
+        headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
+
 def success(body):
+
     return JSONResponse(
         content=jsonable_encoder(body),
         status_code=fastapi.status.HTTP_200_OK,

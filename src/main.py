@@ -14,7 +14,7 @@ def read_root():
     return {"v0.1"}
 
 
-@app.get("/reset")
+@app.post("/reset")
 def reset():
     db_wrapper.db.reset()
     return response.OK()

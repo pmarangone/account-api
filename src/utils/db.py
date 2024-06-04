@@ -38,11 +38,10 @@ class DatabaseWrapper:
         return False
 
     def transfer(self, origin_id: int, destination_id: int, amount: int):
-        if self.contains_account(origin_id) and self.contains_account(destination_id):
-            if self.has_enough_balance(origin_id, amount):
-                self.deposit(destination_id, amount)
-                self.withdraw(origin_id, amount)
-                return True
+        if self.has_enough_balance(origin_id, amount):
+            self.deposit(destination_id, amount)
+            self.withdraw(origin_id, amount)
+            return True
         return False
 
 
