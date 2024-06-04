@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 import fastapi
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 
 def bad_request(body: Dict[str, Any]):
@@ -51,11 +51,10 @@ def success(body):
 
 
 def OK():
-    return JSONResponse(
-        content=jsonable_encoder("OK"),
+    return PlainTextResponse(
+        content="OK",
         status_code=fastapi.status.HTTP_200_OK,
         headers={
-            "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
         },
     )
