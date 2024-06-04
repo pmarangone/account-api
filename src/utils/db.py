@@ -24,20 +24,21 @@ class DatabaseWrapper:
     def has_enough_balance(self, account_id: str, amount: int) -> bool:
         return self.get_current_balance(account_id) >= amount
 
-    def deposit(self, account_id: str, amount: int) -> int:
+    def deposit(self, account_id: str, amount: int) -> bool:
         if self.contains_account(account_id):
             self.db.balances[account_id] += amount
         else:
             self.db.balances[account_id] = amount
         return True
 
-    def withdraw(self, account_id: str, amount: int):
+    def withdraw(self, account_id: str, amount: int) -> bool:
         if self.has_enough_balance(account_id, amount):
             self.db.balances[account_id] -= amount
             return True
         return False
 
-    def transfer(self, origin_id: int, destination_id: int, amount: int):
+    # Enhancement: currently, if the destination account does not exist, it's then created
+    def transfer(self, origin_id: str, destination_id: str, amount: int) -> bool:
         if self.has_enough_balance(origin_id, amount):
             self.deposit(destination_id, amount)
             self.withdraw(origin_id, amount)
