@@ -10,7 +10,6 @@ router = APIRouter(prefix="/event")
 @router.post("")
 def event(event: EventSchema = Body(...)):
     match event.type:
-        # TODO: handle invalid values types
         case "deposit":
             is_success = db_wrapper.deposit(event.destination, event.amount)
             if is_success:
