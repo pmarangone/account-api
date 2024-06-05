@@ -25,6 +25,7 @@ class DatabaseWrapper:
         return self.get_current_balance(account_id) >= amount
 
     def deposit(self, account_id: str, amount: int) -> bool:
+        assert amount > 0, "can't deposit a value lower 0"
         if self.contains_account(account_id):
             self.db.balances[account_id] += amount
         else:
@@ -32,6 +33,7 @@ class DatabaseWrapper:
         return True
 
     def withdraw(self, account_id: str, amount: int) -> bool:
+        assert amount > 0, "can't withdraw a value lower 0"
         if self.has_enough_balance(account_id, amount):
             self.db.balances[account_id] -= amount
             return True
@@ -39,6 +41,7 @@ class DatabaseWrapper:
 
     # Enhancement: currently, if the destination account does not exist, it's then created
     def transfer(self, origin_id: str, destination_id: str, amount: int) -> bool:
+        assert amount > 0, "can't transfer a value lower 0"
         if self.has_enough_balance(origin_id, amount):
             self.deposit(destination_id, amount)
             self.withdraw(origin_id, amount)
