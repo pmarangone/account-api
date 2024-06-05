@@ -1,6 +1,7 @@
 Account API
 
 ## How to use it
+Tested using Python 3.10.14
 
 ```bash
 pip install -r requirements.txt
