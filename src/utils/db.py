@@ -16,7 +16,7 @@ class DatabaseWrapper:
     def contains_account(self, account_id: str) -> bool:
         return account_id in self.db.balances
 
-    def get_current_balance(self, account_id: str) -> bool:
+    def get_current_balance(self, account_id: str) -> int:
         if self.contains_account(account_id):
             return self.db.balances[account_id]
         return 0
