@@ -1,8 +1,15 @@
 from fastapi import APIRouter, Body
 
+from fastapi.encoders import jsonable_encoder
 from src.models.event import EventSchema
 from src.utils.db import db_wrapper
 from src.utils import response
+from src.utils.routes_responses import (
+    BalanceResponse,
+    DepositResponse,
+    TransferResponse,
+    WithdrawResponse,
+)
 
 router = APIRouter(prefix="/event")
 
@@ -14,15 +21,19 @@ def event(event: EventSchema = Body(...)):
             is_success = db_wrapper.deposit(event.destination, event.amount)
             if is_success:
                 current_balance = db_wrapper.get_current_balance(event.destination)
-                data = {
-                    "destination": {"id": event.destination, "balance": current_balance}
-                }
+                data = DepositResponse(
+                    destination=BalanceResponse(
+                        id=event.destination, balance=current_balance
+                    )
+                )
                 return response.created(data)
         case "withdraw":
             is_success = db_wrapper.withdraw(event.origin, event.amount)
             if is_success:
                 current_balance = db_wrapper.get_current_balance(event.origin)
-                data = {"origin": {"id": event.origin, "balance": current_balance}}
+                data = WithdrawResponse(
+                    origin=BalanceResponse(id=event.origin, balance=current_balance)
+                )
                 return response.created(data)
             else:
                 # Enhancement: if account exists and balance is less than amount
@@ -38,13 +49,14 @@ def event(event: EventSchema = Body(...)):
                 destination_current_balance = db_wrapper.get_current_balance(
                     event.destination
                 )
-                data = {
-                    "origin": {"id": event.origin, "balance": origin_current_balance},
-                    "destination": {
-                        "id": event.destination,
-                        "balance": destination_current_balance,
-                    },
-                }
+                data = TransferResponse(
+                    origin=BalanceResponse(
+                        id=event.origin, balance=origin_current_balance
+                    ),
+                    destination=BalanceResponse(
+                        id=event.destination, balance=destination_current_balance
+                    ),
+                )
                 return response.created(data)
             else:
                 return response.not_found(0)

@@ -6,7 +6,7 @@ class MockDatabase:
         self.balances = defaultdict(int)
 
     def reset(self) -> None:
-        self.balances = defaultdict(int)
+        self.balances.clear()
 
 
 class DatabaseWrapper:
@@ -17,14 +17,13 @@ class DatabaseWrapper:
         return account_id in self.db.balances
 
     def get_current_balance(self, account_id: str) -> int:
-        if self.contains_account(account_id):
-            return self.db.balances[account_id]
-        return 0
+        return self.db.balances.get(account_id, 0)
 
     def has_enough_balance(self, account_id: str, amount: int) -> bool:
         return self.get_current_balance(account_id) >= amount
 
     def deposit(self, account_id: str, amount: int) -> bool:
+        # How to propagate this error and return it as error?
         assert amount > 0, "can't deposit a value lower 0"
         if self.contains_account(account_id):
             self.db.balances[account_id] += amount
