@@ -2,6 +2,8 @@ dev:
 	fastapi dev src/main.py
 prod:
 	fastapi run src/main.py
+test:
+	python3 -m unittest tests/test_db_wrapper.py
 	
 
 ### Docker
