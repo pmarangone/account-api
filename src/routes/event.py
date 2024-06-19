@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
 
 from fastapi.encoders import jsonable_encoder
 from src.models.event import EventSchema
@@ -18,27 +18,32 @@ router = APIRouter(prefix="/event")
 def event(event: EventSchema = Body(...)):
     match event.type:
         case "deposit":
-            is_success = db_wrapper.deposit(event.destination, event.amount)
-            if is_success:
-                current_balance = db_wrapper.get_current_balance(event.destination)
-                data = DepositResponse(
-                    destination=BalanceResponse(
-                        id=event.destination, balance=current_balance
+            try:
+                current_balance = db_wrapper.deposit(event.destination, event.amount)
+                if current_balance:
+                    data = DepositResponse(
+                        destination=BalanceResponse(
+                            id=event.destination, balance=current_balance
+                        )
                     )
-                )
-                return response.created(data)
+                    return response.created(data)
+            except HTTPException as e:
+                return response.bad_request(e)
+
         case "withdraw":
-            is_success = db_wrapper.withdraw(event.origin, event.amount)
-            if is_success:
-                current_balance = db_wrapper.get_current_balance(event.origin)
-                data = WithdrawResponse(
-                    origin=BalanceResponse(id=event.origin, balance=current_balance)
-                )
-                return response.created(data)
-            else:
-                # Enhancement: if account exists and balance is less than amount
-                # returns a proper response
-                return response.not_found(0)
+            try:
+                current_balance = db_wrapper.withdraw(event.origin, event.amount)
+                if current_balance:
+                    data = WithdrawResponse(
+                        origin=BalanceResponse(id=event.origin, balance=current_balance)
+                    )
+                    return response.created(data)
+                else:
+                    # Enhancement: if account exists and balance is less than amount
+                    # returns a proper response
+                    return response.not_found(0)
+            except HTTPException as e:
+                return response.bad_request(e)
 
         case "transfer":
             is_success = db_wrapper.transfer(

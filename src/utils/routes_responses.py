@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class BalanceResponse(BaseModel):
     id: str = Field(...)
-    balance: int = Field(...)
+    balance: float = Field(...)
 
 
 class DepositResponse(BaseModel):

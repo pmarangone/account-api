@@ -1,4 +1,6 @@
 import unittest
+
+from fastapi import HTTPException
 from src.utils.db import DatabaseWrapper
 
 
@@ -10,7 +12,7 @@ class WrapperTestCase(unittest.TestCase):
         destination = "100"
         amount = 10
         self.assertEqual(
-            self.wrapper.deposit(destination, amount), True, "deposit failed"
+            self.wrapper.deposit(destination, amount), 10, "deposit failed"
         )
         self.assertEqual(
             self.wrapper.get_current_balance(destination), amount, "incorrect balance"
@@ -19,24 +21,18 @@ class WrapperTestCase(unittest.TestCase):
     def test_deposit_negative_amount(self):
         destination = "100"
         amount = -10
-        self.assertRaises(AssertionError, self.wrapper.deposit, destination, amount)
+        self.assertRaises(HTTPException, self.wrapper.deposit, destination, amount)
 
     def test_withdraw_success(self):
         origin = "100"
         amount = 10
         amount_to_withdraw = 5
 
-        self.assertEqual(
-            self.wrapper.withdraw(origin, amount),
-            False,
-            "withdraw from non-existing account",
-        )
-
         self.wrapper.deposit(origin, amount)
 
         self.assertEqual(
             self.wrapper.withdraw(origin, amount_to_withdraw),
-            True,
+            amount_to_withdraw,
             "withdraw failed",
         )
         self.assertEqual(
@@ -50,18 +46,13 @@ class WrapperTestCase(unittest.TestCase):
         amount = 10
         amount_to_withdraw = 11
 
-        self.assertEqual(
-            self.wrapper.withdraw(origin, amount),
-            False,
-            "withdraw from non-existing account",
-        )
-
         self.wrapper.deposit(origin, amount)
 
-        self.assertEqual(
-            self.wrapper.withdraw(origin, amount_to_withdraw),
-            False,
-            "withdraw more than balance",
+        self.assertRaises(
+            HTTPException,
+            self.wrapper.withdraw,
+            origin,
+            amount_to_withdraw,
         )
 
     def test_withdraw_negative_amount(self):
@@ -69,10 +60,8 @@ class WrapperTestCase(unittest.TestCase):
         amount = 10
         amount_to_withdraw = -1
 
-        self.wrapper.deposit(origin, amount)
-
         self.assertRaises(
-            AssertionError, self.wrapper.deposit, origin, amount_to_withdraw
+            HTTPException, self.wrapper.deposit, origin, amount_to_withdraw
         )
 
     def test_transfer_to_non_existing_account(self):
