@@ -10,8 +10,18 @@ from src.utils.routes_responses import (
     TransferResponse,
     WithdrawResponse,
 )
+from src.utils.send_tx import send_transaction_to_rabbitmq
 
 router = APIRouter(prefix="/event")
+
+
+@router.post("/test")
+def event(event: EventSchema = Body(...)):
+    try:
+        send_transaction_to_rabbitmq(event)
+        return response.ok()
+    except:
+        return response.bad_request({"message": "Failed"})
 
 
 @router.post("")
