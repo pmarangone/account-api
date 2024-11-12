@@ -1,5 +1,7 @@
 import psycopg2
 
+from account import AccountSchema
+
 DB_HOST = "localhost"
 DB_NAME = "database"
 DB_USER = "user"
@@ -72,21 +74,21 @@ def get_account(account_id):
         print("e", e)
 
 
-def update_balance(value=10):
-    select_account = "SELECT * FROM accounts WHERE id=%s FOR UPDATE;"
-    update_balance_query = "UPDATE accounts SET balance=%s WHERE id=%s;"
+def update_balance(id, value=10):
+    select_account = "SELECT * FROM accounts WHERE account_id=%s FOR UPDATE;"
+    update_balance_query = (
+        "UPDATE accounts SET balance=%s WHERE account_id=%s RETURNING *;"
+    )
     try:
         conn, cur = create_conn()
         # Lock the user's account row in the database
-        cur.execute(select_account, (1,))
+        cur.execute(select_account, (id,))
         account = cur.fetchone()
 
         current_balance = account[1]
         # If withdraw
         if value < 0:
             assert current_balance >= -value, "Error"
-
-        print("account", account, len(account))
 
         if account:
             new_balance = current_balance + value
@@ -95,9 +97,14 @@ def update_balance(value=10):
                 update_balance_query,
                 (
                     new_balance,
-                    1,
+                    id,
                 ),
             )
+            updated_account = cur.fetchone()
+            account_data = {
+                field: updated_account[idx]
+                for idx, field in enumerate(AccountSchema.model_fields.keys())
+            }
             conn.commit()
         else:
             pass
@@ -107,9 +114,10 @@ def update_balance(value=10):
 
 
 if __name__ == "__main__":
+    id = "1000"
     create_table()
-    # create_account(1000, 1001)
+    # create_account(id, 1001)
     # read_accounts()
-    # update_balance(value=-200)
+    # update_balance(id, value=-200)
     # read_accounts()
     # get_account("1000")
