@@ -1,7 +1,8 @@
 import psycopg2
 
 from src.database.setup_db import connect_db
-from src.models.event import AccountSchema, NonExist
+from src.models.account_manager import AccountSchema
+from src.models.errors import NonExist
 
 
 class AccountManager:

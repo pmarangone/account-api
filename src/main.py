@@ -1,5 +1,7 @@
 import asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from src.consume_messages import consume_messages
 
@@ -29,6 +31,14 @@ from contextlib import asynccontextmanager
 app = FastAPI()
 app.include_router(balance.router)
 app.include_router(event.router)
+
+
+# Customize validation exception handler
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request: Request, exc: RequestValidationError):
+#     # Response must be an array since more than one field could be invalid
+#     errors = [{"msg": err["msg"]} for err in exc.errors()]
+#     return JSONResponse(status_code=422, content=errors)
 
 
 @app.get("/")

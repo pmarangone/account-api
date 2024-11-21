@@ -11,10 +11,13 @@ router = APIRouter(prefix="/balance")
 @router.get("/test")
 def read_balance_sql(account_id: int = Query(...)):
     account_data = account_manager.get_account(str(account_id))
-
-    if account_data:
-        return response.success(jsonable_encoder(account_data["balance"]))
-    return response.not_found(0)
+    try:
+        if account_data:
+            return response.success(account_data["balance"])
+        return response.not_found(0)
+    except Exception as e:
+        # TODO: log e
+        return response.bad_request(e)
 
 
 @router.get("")

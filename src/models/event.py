@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class EventSchema(BaseModel):
@@ -7,11 +7,8 @@ class EventSchema(BaseModel):
     destination: str = None
     origin: str = None
 
-
-class AccountSchema(BaseModel):
-    id: str = Field(...)
-    balance: int = Field(...)
-
-
-class NonExist(Exception):
-    pass
+    @field_validator("amount")
+    def amount_must_be_greater_than_zero(cls, value):
+        if 0 <= value:
+            raise ValueError("Amount must be greater than zero")
+        return value
