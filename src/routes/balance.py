@@ -8,7 +8,7 @@ from src.utils import response
 router = APIRouter(prefix="/balance")
 
 
-@router.get("/test")
+@router.get("/pg")
 def read_balance_sql(account_id: int = Query(...)):
     account_data = account_manager.get_account(str(account_id))
     try:

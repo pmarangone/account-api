@@ -17,7 +17,7 @@ from src.core.event import process_transaction
 router = APIRouter(prefix="/event")
 
 
-@router.post("/test")
+@router.post("/pg")
 def event(event: EventSchema = Body(...)):
     try:
         response_data = process_transaction(event)
