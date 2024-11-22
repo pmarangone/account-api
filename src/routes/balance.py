@@ -1,9 +1,23 @@
 from fastapi import APIRouter, Query
+from fastapi.encoders import jsonable_encoder
 
+from src.database.account_manager import account_manager
 from src.utils.db import db_wrapper
 from src.utils import response
 
 router = APIRouter(prefix="/balance")
+
+
+@router.get("/pg")
+def read_balance_sql(account_id: int = Query(...)):
+    account_data = account_manager.get_account(str(account_id))
+    try:
+        if account_data:
+            return response.success(account_data["balance"])
+        return response.not_found(0)
+    except Exception as e:
+        # TODO: log e
+        return response.bad_request(e)
 
 
 @router.get("")
