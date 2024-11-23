@@ -16,9 +16,15 @@ RABBITMQ_HOST = "localhost"  # Since you're mapping ports directly
 RABBITMQ_USER = "myuser"
 RABBITMQ_PASSWORD = "mypassword"
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 def connect_db():
     """Establish PostgreSQL database connection"""
+    logger.info("Creating database connection")
     return psycopg2.connect(
         host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
     )
