@@ -15,55 +15,61 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def process_transaction(body):
-    try:
-        type, destination, amount, origin = (
-            body.type,
-            body.destination,
-            body.amount,
-            body.origin,
-        )
+class EventService:
+    @staticmethod
+    def process_transaction(body):
+        try:
+            type, destination, amount, origin = (
+                body.type,
+                body.destination,
+                body.amount,
+                body.origin,
+            )
 
-        # Lock the user's account row in the database
-        logger.info(f"data {body}")
+            logger.info(f"data {body}")
 
-        match type:
-            case "deposit":
-                updated_data = account_repository.update_balance(destination, amount)
-                return DepositResponse(
-                    destination=BalanceResponse(
-                        id=updated_data["id"], balance=updated_data["balance"]
+            match type:
+                case "deposit":
+                    updated_data = account_repository.update_balance(
+                        destination, amount
                     )
-                )
-            case "withdraw":
-                to_withdraw = -amount  # decrement from current balance
-                updated_data = account_repository.update_balance(origin, to_withdraw)
-                return WithdrawResponse(
-                    origin=BalanceResponse(
-                        id=updated_data["id"], balance=updated_data["balance"]
+                    return DepositResponse(
+                        destination=BalanceResponse(
+                            id=updated_data["id"], balance=updated_data["balance"]
+                        )
                     )
-                )
-            case "transfer":
-                decrement_from_origin = -amount
-                transfer_to_destination = amount
+                case "withdraw":
+                    to_withdraw = -amount  # decrement from current balance
+                    updated_data = account_repository.update_balance(
+                        origin, to_withdraw
+                    )
+                    return WithdrawResponse(
+                        origin=BalanceResponse(
+                            id=updated_data["id"], balance=updated_data["balance"]
+                        )
+                    )
+                case "transfer":
+                    decrement_from_origin = -amount
+                    transfer_to_destination = amount
 
-                origin_data = account_repository.update_balance(
-                    origin, decrement_from_origin
-                )
-                destination_data = account_repository.update_balance(
-                    destination, transfer_to_destination
-                )
+                    origin_data = account_repository.update_balance(
+                        origin, decrement_from_origin
+                    )
+                    destination_data = account_repository.update_balance(
+                        destination, transfer_to_destination
+                    )
 
-                return TransferResponse(
-                    origin=BalanceResponse(
-                        id=origin_data["id"], balance=origin_data["balance"]
-                    ),
-                    destination=BalanceResponse(
-                        id=destination_data["id"], balance=destination_data["balance"]
-                    ),
-                )
+                    return TransferResponse(
+                        origin=BalanceResponse(
+                            id=origin_data["id"], balance=origin_data["balance"]
+                        ),
+                        destination=BalanceResponse(
+                            id=destination_data["id"],
+                            balance=destination_data["balance"],
+                        ),
+                    )
 
-    except (Exception, psycopg2.DatabaseError) as error:
-        print("e", error)  # TODO
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("e", error)  # TODO
 
-        raise error
+            raise error
