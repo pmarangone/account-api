@@ -9,7 +9,7 @@ from src.utils.routes_responses import (
     WithdrawResponse,
 )
 
-from ..database.account_manager import account_manager
+from ..database.account_repository import account_repository
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def process_transaction(body):
 
         match type:
             case "deposit":
-                updated_data = account_manager.update_balance(destination, amount)
+                updated_data = account_repository.update_balance(destination, amount)
                 return DepositResponse(
                     destination=BalanceResponse(
                         id=updated_data["id"], balance=updated_data["balance"]
@@ -37,7 +37,7 @@ def process_transaction(body):
                 )
             case "withdraw":
                 to_withdraw = -amount  # decrement from current balance
-                updated_data = account_manager.update_balance(origin, to_withdraw)
+                updated_data = account_repository.update_balance(origin, to_withdraw)
                 return WithdrawResponse(
                     origin=BalanceResponse(
                         id=updated_data["id"], balance=updated_data["balance"]
@@ -47,10 +47,10 @@ def process_transaction(body):
                 decrement_from_origin = -amount
                 transfer_to_destination = amount
 
-                origin_data = account_manager.update_balance(
+                origin_data = account_repository.update_balance(
                     origin, decrement_from_origin
                 )
-                destination_data = account_manager.update_balance(
+                destination_data = account_repository.update_balance(
                     destination, transfer_to_destination
                 )
 

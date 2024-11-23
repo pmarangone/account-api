@@ -5,7 +5,7 @@ from src.models.account_manager import AccountSchema
 from src.models.errors import NonExist
 
 
-class AccountManager:
+class AccountRepository:
     def __init__(self):
         self.conn = None
 
@@ -134,4 +134,4 @@ class AccountManager:
             #     conn.close()
 
 
-account_manager = AccountManager()
+account_repository = AccountRepository()
