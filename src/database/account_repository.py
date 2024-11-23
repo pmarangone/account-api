@@ -1,137 +1,112 @@
-import psycopg2
+from sqlalchemy import create_engine, exc
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, Integer
 
-from src.database.setup_db import connect_db
+from src.database.setup_db import DATABASE_URL
 from src.models.account_manager import AccountSchema
 from src.models.errors import NonExist
+from src.utils.logger import get_logger
+
+Base = declarative_base()
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+logger = get_logger(__name__)
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+    account_id = Column(String, primary_key=True, index=True)
+    balance = Column(Integer, default=0)
 
 
 class AccountRepository:
     def __init__(self):
-        self.conn = None
+        self.session = SessionLocal()
 
-    def get_connection_and_cursor(self):
-        if self.conn:
-            return self.conn, self.conn.cursor()
-
-        self.conn = connect_db()
-        return self.conn, self.conn.cursor()
+    def parse_account_to_return(self, account) -> AccountSchema:
+        account = account.__dict__
+        return {"id": account["account_id"], "balance": account["balance"]}
 
     def get_accounts(self):
         """Retrieve all accounts"""
-        select_all_accounts = "SELECT * FROM accounts"
         try:
-            conn, cur = self.get_connection_and_cursor()
-            cur.execute(select_all_accounts)
-            return cur.fetchall()
-
-        except Exception as e:
-            print("e", e)
+            accounts = self.session.query(Account).all()
+            return [self.parse_account_to_return(account) for account in accounts]
+        except exc.SQLAlchemyError as sql_err:
+            logger.error("SQLAlchemy error while retrieving accounts: ", sql_err)
+        except Exception as err:
+            logger.error("General error while retrieving accounts: ", err)
 
     def get_account(self, account_id: str) -> AccountSchema:
-        """Retrieve account by id"""
-        select_account_by_id = "SELECT * FROM accounts WHERE account_id=%s;"
+        """Retrieve account by ID"""
         try:
-            conn, cur = self.get_connection_and_cursor()
-            cur.execute(select_account_by_id, (account_id,))
-            account = cur.fetchall()[0]
+            account = (
+                self.session.query(Account).filter_by(account_id=account_id).first()
+            )
 
             if account:
-                account_data = {
-                    field: account[idx]
-                    for idx, field in enumerate(AccountSchema.model_fields.keys())
-                }
-
-                return account_data
+                return self.parse_account_to_return(account)
             else:
-                raise "Account does not exist"
-
-        except Exception as e:
-            print("e", e)
+                raise NonExist("Account does not exist")
+        except exc.SQLAlchemyError as sql_err:
+            logger.error("SQLAlchemy error while retrieving account: ", sql_err)
+        except Exception as err:
+            logger.error("General error while retrieving account: ", err)
 
     def create_account(self, account_id: str, initial_balance: int) -> AccountSchema:
         """Creates (account_id, initial_balance): account_id is unique"""
-        create_account_sql = (
-            "INSERT INTO accounts (account_id, balance) VALUES (%s, %s) RETURNING *;"
-        )
         try:
-            conn, cur = self.get_connection_and_cursor()
-            cur.execute(
-                create_account_sql,
-                (
-                    account_id,
-                    initial_balance,
-                ),
-            )
-            updated_account = cur.fetchone()
-            account_data = {
-                field: updated_account[idx]
-                for idx, field in enumerate(AccountSchema.model_fields.keys())
-            }
-            conn.commit()
-
-            return account_data
-
-        except Exception as e:
-            print("e", e)
+            new_account = Account(account_id=account_id, balance=initial_balance)
+            self.session.add(new_account)
+            self.session.commit()
+            self.session.refresh(new_account)
+            return self.parse_account_to_return(new_account)
+        except exc.SQLAlchemyError as sql_err:
+            logger.error("SQLAlchemy error while creating account: ", sql_err)
+            self.session.rollback()
+            raise sql_err
+        except Exception as err:
+            logger.error("General error while creating account: ", err)
+            self.session.rollback()
+            raise err
 
     def update_balance(self, account_id: str, amount: int) -> AccountSchema:
-        select_account = "SELECT * FROM accounts WHERE account_id=%s FOR UPDATE;"
-        update_balance_query = (
-            "UPDATE accounts SET balance=%s WHERE account_id=%s RETURNING *;"
-        )
+        """Update the balance of an account, create if it doesn't exist"""
         try:
-            conn, cur = self.get_connection_and_cursor()
-            # Lock the user's account row in the database
-            cur.execute(select_account, (account_id,))
-            account = cur.fetchone()
-
+            account = (
+                self.session.query(Account)
+                .with_for_update()
+                .filter_by(account_id=account_id)
+                .first()
+            )
             if account:
-                current_balance = account[1]
-                # If withdraw
-
-                if amount < 0:
-                    assert current_balance >= -amount, "ERROR: Insufficient balance"
-                new_balance = current_balance + amount
-
-                # Update account balance and release lock
-                cur.execute(
-                    update_balance_query,
-                    (
-                        new_balance,
-                        account_id,
-                    ),
-                )
-                updated_account = cur.fetchone()
-                account_data = {
-                    field: updated_account[idx]
-                    for idx, field in enumerate(AccountSchema.model_fields.keys())
-                }
-                conn.commit()
-
-                return account_data
+                if amount < 0 and account.balance < -amount:
+                    raise ValueError("ERROR: Insufficient balance")
+                account.balance += amount
+                self.session.commit()
+                self.session.refresh(account)
+                return self.parse_account_to_return(account)
             else:
                 if amount > 0:
-                    account = self.create_account(account_id, amount)
-                    return account
-
+                    return self.create_account(account_id, amount)
                 else:
-                    raise NonExist("ERROR: Tried to withdraw from non existing account")
+                    raise NonExist("ERROR: Tried to withdraw from non-existing account")
+        except exc.SQLAlchemyError as sql_err:
+            logger.error("SQLAlchemy error while updating balance: ", sql_err)
+            self.session.rollback()
+            raise sql_err
+        except Exception as err:
+            logger.error("General error while updating balance: ", err)
+            self.session.rollback()
+            raise err
 
-        # except NonExist as e:
-        #     print("e", e)  # TODO
-        #     conn.rollback()
-        #     raise e
+    def close(self):
+        self.session.close()
 
-        except Exception as e:
-            print("e", e)  # TODO
-            conn.rollback()
-            raise e
 
-        finally:
-            if cur:
-                cur.close()
-            # if conn:
-            #     conn.close()
-
+Base.metadata.create_all(bind=engine)
 
 account_repository = AccountRepository()

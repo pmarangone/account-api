@@ -81,8 +81,9 @@ class EventService:
                     )
 
         except (Exception, psycopg2.DatabaseError) as error:
-            print("e", error)  # TODO
+            logger.error("Error: ", error)  # TODO
 
+            # TODO: return error as response
             raise error
 
     @staticmethod
