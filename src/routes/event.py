@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Body, HTTPException
 
-from fastapi.encoders import jsonable_encoder
 from src.models.event import EventSchema
 from src.models.errors import NonExist
 from src.utils.db import db_wrapper
@@ -11,7 +10,6 @@ from src.utils.routes_responses import (
     TransferResponse,
     WithdrawResponse,
 )
-from src.utils.send_tx import send_transaction_to_rabbitmq
 from src.core.event import EventService
 
 router = APIRouter(prefix="/event")
