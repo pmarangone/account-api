@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Body, HTTPException
 
-from fastapi.encoders import jsonable_encoder
 from src.models.event import EventSchema
 from src.models.errors import NonExist
 from src.utils.db import db_wrapper
@@ -11,8 +10,7 @@ from src.utils.routes_responses import (
     TransferResponse,
     WithdrawResponse,
 )
-from src.utils.send_tx import send_transaction_to_rabbitmq
-from src.core.event import process_transaction
+from src.core.event import EventService
 
 router = APIRouter(prefix="/event")
 
@@ -20,7 +18,8 @@ router = APIRouter(prefix="/event")
 @router.post("/pg")
 def event(event: EventSchema = Body(...)):
     try:
-        response_data = process_transaction(event)
+        event_service = EventService()
+        response_data = event_service.process_transaction(event)
         return response.success(response_data)
 
     except NonExist as e:

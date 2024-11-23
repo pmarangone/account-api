@@ -9,6 +9,6 @@ class EventSchema(BaseModel):
 
     @field_validator("amount")
     def amount_must_be_greater_than_zero(cls, value):
-        if 0 <= value:
+        if value <= 0:
             raise ValueError("Amount must be greater than zero")
         return value

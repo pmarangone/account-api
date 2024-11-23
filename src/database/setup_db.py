@@ -9,16 +9,19 @@ DB_PASSWORD = "password"
 
 # RabbitMQ connection settings
 RABBITMQ_HOST = "localhost"
-RABBITMQ_QUEUE = "transactions"
-
-# Assuming these match your docker-compose.yml config
-RABBITMQ_HOST = "localhost"  # Since you're mapping ports directly
 RABBITMQ_USER = "myuser"
 RABBITMQ_PASSWORD = "mypassword"
+RABBITMQ_QUEUE = "transactions"
+
+
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def connect_db():
     """Establish PostgreSQL database connection"""
+    logger.info("Creating database connection")
     return psycopg2.connect(
         host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
     )

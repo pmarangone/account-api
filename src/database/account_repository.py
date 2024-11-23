@@ -5,15 +5,16 @@ from src.models.account_manager import AccountSchema
 from src.models.errors import NonExist
 
 
-class AccountManager:
+class AccountRepository:
     def __init__(self):
-        pass
+        self.conn = None
 
     def get_connection_and_cursor(self):
-        conn = connect_db()
-        cur = conn.cursor()
+        if self.conn:
+            return self.conn, self.conn.cursor()
 
-        return conn, cur
+        self.conn = connect_db()
+        return self.conn, self.conn.cursor()
 
     def get_accounts(self):
         """Retrieve all accounts"""
@@ -129,8 +130,8 @@ class AccountManager:
         finally:
             if cur:
                 cur.close()
-            if conn:
-                conn.close()
+            # if conn:
+            #     conn.close()
 
 
-account_manager = AccountManager()
+account_repository = AccountRepository()

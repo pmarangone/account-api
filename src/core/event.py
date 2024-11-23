@@ -1,5 +1,4 @@
 import json
-import logging
 import psycopg2
 
 from src.utils.routes_responses import (
@@ -9,61 +8,106 @@ from src.utils.routes_responses import (
     WithdrawResponse,
 )
 
-from ..database.account_manager import account_manager
+from src.database.account_repository import account_repository
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import pika
+import json
+from fastapi.encoders import jsonable_encoder
+
+from src.database.setup_db import connect_rabbitmq, RABBITMQ_QUEUE
+
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
-def process_transaction(body):
-    try:
-        type, destination, amount, origin = (
-            body.type,
-            body.destination,
-            body.amount,
-            body.origin,
-        )
+class EventService:
+    @staticmethod
+    def process_transaction(body):
+        try:
+            type, destination, amount, origin = (
+                body.type,
+                body.destination,
+                body.amount,
+                body.origin,
+            )
 
-        # Lock the user's account row in the database
-        logger.info(f"data {body}")
+            logger.info(f"data {body}")
 
-        match type:
-            case "deposit":
-                updated_data = account_manager.update_balance(destination, amount)
-                return DepositResponse(
-                    destination=BalanceResponse(
-                        id=updated_data["id"], balance=updated_data["balance"]
+            match type:
+                case "deposit":
+                    updated_data = account_repository.update_balance(
+                        destination, amount
                     )
-                )
-            case "withdraw":
-                to_withdraw = -amount  # decrement from current balance
-                updated_data = account_manager.update_balance(origin, to_withdraw)
-                return WithdrawResponse(
-                    origin=BalanceResponse(
-                        id=updated_data["id"], balance=updated_data["balance"]
+
+                    EventService.publish_event(body)
+
+                    return DepositResponse(
+                        destination=BalanceResponse(
+                            id=updated_data["id"], balance=updated_data["balance"]
+                        )
                     )
-                )
-            case "transfer":
-                decrement_from_origin = -amount
-                transfer_to_destination = amount
+                case "withdraw":
+                    to_withdraw = -amount  # decrement from current balance
+                    updated_data = account_repository.update_balance(
+                        origin, to_withdraw
+                    )
+                    return WithdrawResponse(
+                        origin=BalanceResponse(
+                            id=updated_data["id"], balance=updated_data["balance"]
+                        )
+                    )
+                case "transfer":
+                    decrement_from_origin = -amount
+                    transfer_to_destination = amount
 
-                origin_data = account_manager.update_balance(
-                    origin, decrement_from_origin
-                )
-                destination_data = account_manager.update_balance(
-                    destination, transfer_to_destination
-                )
+                    origin_data = account_repository.update_balance(
+                        origin, decrement_from_origin
+                    )
+                    destination_data = account_repository.update_balance(
+                        destination, transfer_to_destination
+                    )
 
-                return TransferResponse(
-                    origin=BalanceResponse(
-                        id=origin_data["id"], balance=origin_data["balance"]
-                    ),
-                    destination=BalanceResponse(
-                        id=destination_data["id"], balance=destination_data["balance"]
-                    ),
-                )
+                    EventService.publish_event(body)
 
-    except (Exception, psycopg2.DatabaseError) as error:
-        print("e", error)  # TODO
+                    return TransferResponse(
+                        origin=BalanceResponse(
+                            id=origin_data["id"], balance=origin_data["balance"]
+                        ),
+                        destination=BalanceResponse(
+                            id=destination_data["id"],
+                            balance=destination_data["balance"],
+                        ),
+                    )
 
-        raise error
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("e", error)  # TODO
+
+            raise error
+
+    @staticmethod
+    def publish_event(transaction):
+        try:
+            connection = connect_rabbitmq()
+            channel = connection.channel()
+
+            channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+
+            transaction_json = jsonable_encoder(transaction)
+            transaction_json = json.dumps(transaction_json)
+
+            channel.basic_publish(
+                exchange="",
+                routing_key=RABBITMQ_QUEUE,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # Make message persistent
+                ),
+                body=transaction_json,
+            )
+
+            logger.info(f"Transaction sent to RabbitMQ: {transaction}")
+
+            connection.close()
+
+        except Exception as e:
+            logger.error(f"Unexpected error while sending transaction: {e}")
