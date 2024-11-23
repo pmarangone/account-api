@@ -1,13 +1,13 @@
 import json
-import logging
 import psycopg2
 
 from ..database.setup_db import connect_db
 
 from ..database.account_repository import account_repository
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def process_transaction(ch=None, method=None, properties=None, body=None):

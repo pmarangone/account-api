@@ -16,10 +16,10 @@ RABBITMQ_HOST = "localhost"  # Since you're mapping ports directly
 RABBITMQ_USER = "myuser"
 RABBITMQ_PASSWORD = "mypassword"
 
-import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def connect_db():

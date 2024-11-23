@@ -1,5 +1,4 @@
 import json
-import logging
 import psycopg2
 
 from src.utils.routes_responses import (
@@ -11,8 +10,9 @@ from src.utils.routes_responses import (
 
 from ..database.account_repository import account_repository
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class EventService:

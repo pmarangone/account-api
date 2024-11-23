@@ -1,12 +1,10 @@
-import logging
 import asyncio
 from .database.setup_db import connect_rabbitmq, RABBITMQ_QUEUE
 from typing import Optional
 from src.utils.process_tx import process_transaction
+from .utils.logger import get_logger
 
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def consume_messages(stop_event: Optional[asyncio.Future] = None):
