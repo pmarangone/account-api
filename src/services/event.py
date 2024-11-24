@@ -8,7 +8,7 @@ from src.utils.routes_responses import (
     WithdrawResponse,
 )
 
-from src.database.account_repository import account_repository
+from src.repository.account import account_repository
 
 import pika
 import json
@@ -81,8 +81,9 @@ class EventService:
                     )
 
         except (Exception, psycopg2.DatabaseError) as error:
-            print("e", error)  # TODO
+            logger.error("Error: ", error)  # TODO
 
+            # TODO: return error as response
             raise error
 
     @staticmethod

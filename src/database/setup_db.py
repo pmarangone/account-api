@@ -6,6 +6,7 @@ DB_HOST = "localhost"
 DB_NAME = "database"
 DB_USER = "user"
 DB_PASSWORD = "password"
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 # RabbitMQ connection settings
 RABBITMQ_HOST = "localhost"
