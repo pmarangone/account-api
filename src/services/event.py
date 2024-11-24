@@ -8,7 +8,7 @@ from src.utils.routes_responses import (
     WithdrawResponse,
 )
 
-from src.database.account_repository import account_repository
+from src.repository.account import account_repository
 
 import pika
 import json

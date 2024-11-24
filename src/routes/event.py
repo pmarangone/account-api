@@ -10,7 +10,7 @@ from src.utils.routes_responses import (
     TransferResponse,
     WithdrawResponse,
 )
-from src.core.event import EventService
+from src.services.event import EventService
 
 router = APIRouter(prefix="/event")
 
