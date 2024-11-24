@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query
 from fastapi.encoders import jsonable_encoder
 
-from src.repository.account import account_repository
+from src.repositories.account import account_repository
 from src.utils.db import db_wrapper
 from src.utils import response
 
