@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException
 
 from src.models.event import EventSchema
-from src.models.errors import NonExist
+from src.repositories.account import AccountRepository
 from src.utils.db import db_wrapper
 from src.utils import response
 from src.utils.routes_responses import (
@@ -17,18 +17,10 @@ router = APIRouter(prefix="/event")
 
 @router.post("/pg")
 def event(event: EventSchema = Body(...)):
-    try:
-        event_service = EventService()
-        response_data = event_service.process_transaction(event)
-        return response.success(response_data)
-
-    except NonExist as e:
-        print("e", e)  # TODO
-        return response.not_found(0)
-
-    except Exception as e:
-        print("e", e)  # TODO
-        return response.bad_request(e)
+    account_repository = AccountRepository()
+    event_service = EventService(account_repository)
+    response_data = event_service.process_transaction(event)
+    return response_data
 
 
 @router.post("")
