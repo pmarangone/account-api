@@ -1,6 +1,8 @@
 import json
 import psycopg2
 
+from src.utils import response
+from src.models.errors import NonExist
 from src.utils.routes_responses import (
     BalanceResponse,
     DepositResponse,
@@ -8,7 +10,7 @@ from src.utils.routes_responses import (
     WithdrawResponse,
 )
 
-from src.repositories.account import account_repository
+from src.repositories.account import AccountRepository
 
 import pika
 import json
@@ -22,10 +24,63 @@ logger = get_logger(__name__)
 
 
 class EventService:
-    @staticmethod
-    def process_transaction(body):
+    def __init__(self, repository: AccountRepository):
+        self.account_repository = repository
+
+    def get_account_balance(self, account_id):
         try:
-            type, destination, amount, origin = (
+            account = self.account_repository.get_account(account_id)
+            if not account:
+                error_msg = f"Account does not exist. Account: {account_id}"
+                logger.info(error_msg)
+                raise NonExist(error_msg)
+
+            return BalanceResponse(id=account.account_id, balance=account.balance)
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(f"Error: {error}")
+            return response.bad_request({"error": str(error)})
+
+    def deposit(self, account_id: str, amount: int):
+        logger.warn(f"{account_id} {amount}")
+        account = self.account_repository.get_account_with_lock(account_id)
+
+        if not account:
+            account = self.account_repository.create_account(account_id, amount)
+        else:
+            account = self.account_repository.update_account_balance(account, amount)
+
+        return account
+
+    def withdraw(self, account_id: str, amount: int):
+        account = self.account_repository.get_account_with_lock(account_id)
+
+        if not account:
+            error_msg = f"Account does not exist. Account: {account_id}"
+            logger.info(error_msg)
+            raise NonExist(error_msg)
+        elif account.balance < amount:
+            error_msg = f"Account does not have enough balance. Account: {account_id}, amount: {amount}"
+            logger.info(error_msg)
+            raise Exception(error_msg)
+
+        to_withdraw = -amount  # decrement from current balance
+        account = self.account_repository.update_account_balance(account, to_withdraw)
+
+        return account
+
+    def process_transaction(self, body):
+        """NOTE
+        Commits occur at the service level, avoiding updating the database before
+        all transactions went through.
+
+        Example: If the withdrawal succeeds but the deposit fails, any changes
+        to the origin account must also be reverted manually to maintain
+        consistency.
+
+        Fix:
+        """
+        try:
+            event_type, destination, amount, origin = (
                 body.type,
                 body.destination,
                 body.amount,
@@ -34,57 +89,58 @@ class EventService:
 
             logger.info(f"data {body}")
 
-            match type:
+            match event_type:
                 case "deposit":
-                    updated_data = account_repository.update_balance(
-                        destination, amount
-                    )
+                    account = self.deposit(destination, amount)
 
                     EventService.publish_event(body)
+
+                    # Defer committing until all operations went through
+                    self.account_repository.commit()
 
                     return DepositResponse(
                         destination=BalanceResponse(
-                            id=updated_data["id"], balance=updated_data["balance"]
+                            id=account.account_id, balance=account.balance
                         )
                     )
                 case "withdraw":
-                    to_withdraw = -amount  # decrement from current balance
-                    updated_data = account_repository.update_balance(
-                        origin, to_withdraw
-                    )
+                    account = self.withdraw(origin, amount)
+
+                    # Defer committing until all operations went through
+                    self.account_repository.commit()
+
                     return WithdrawResponse(
                         origin=BalanceResponse(
-                            id=updated_data["id"], balance=updated_data["balance"]
+                            id=account.account_id, balance=account.balance
                         )
                     )
                 case "transfer":
-                    decrement_from_origin = -amount
-                    transfer_to_destination = amount
-
-                    origin_data = account_repository.update_balance(
-                        origin, decrement_from_origin
-                    )
-                    destination_data = account_repository.update_balance(
-                        destination, transfer_to_destination
-                    )
+                    origin_account = self.withdraw(origin, amount)
+                    destination_account = self.deposit(destination, amount)
 
                     EventService.publish_event(body)
 
+                    # Defer committing until all operations went through
+                    self.account_repository.commit()
+
                     return TransferResponse(
                         origin=BalanceResponse(
-                            id=origin_data["id"], balance=origin_data["balance"]
+                            id=origin_account.account_id,
+                            balance=origin_account.balance,
                         ),
                         destination=BalanceResponse(
-                            id=destination_data["id"],
-                            balance=destination_data["balance"],
+                            id=destination_account.account_id,
+                            balance=destination_account.balance,
                         ),
                     )
 
         except (Exception, psycopg2.DatabaseError) as error:
-            logger.error("Error: ", error)  # TODO
+            logger.error(f"Error: {error}")
+            self.account_repository.rollback()
+            return response.bad_request({"error": str(error)})
 
-            # TODO: return error as response
-            raise error
+        finally:
+            self.account_repository.close()
 
     @staticmethod
     def publish_event(transaction):
