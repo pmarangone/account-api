@@ -36,14 +36,6 @@ class AccountRepository:
     def get_account(self, account_id: str) -> Account:
         return self.session.query(Account).filter_by(account_id=account_id).first()
 
-    def create_account(self, account_id: str, balance: int) -> Account:
-        logger.info(f"here { account_id }, { balance }")
-        new_account = Account(account_id=account_id, balance=balance)
-        self.session.add(new_account)
-        self.session.commit()
-        self.session.refresh(new_account)
-        return new_account
-
     def get_account_with_lock(self, account_id: str) -> Account:
         return (
             self.session.query(Account)
@@ -52,10 +44,14 @@ class AccountRepository:
             .first()
         )
 
+    def create_account(self, account_id: str, balance: int) -> Account:
+        logger.info(f"here { account_id }, { balance }")
+        new_account = Account(account_id=account_id, balance=balance)
+        self.session.add(new_account)
+        return new_account
+
     def update_account_balance(self, account: Account, amount: int):
         account.balance += amount
-        self.session.commit()
-        self.session.refresh(account)
         return account
 
     def close(self):
@@ -63,6 +59,9 @@ class AccountRepository:
 
     def rollback(self):
         self.session.rollback()
+
+    def commit(self):
+        self.session.commit()
 
 
 Base.metadata.create_all(bind=engine)

@@ -34,6 +34,7 @@ class EventService:
                 error_msg = f"Account does not exist. Account: {account_id}"
                 logger.info(error_msg)
                 raise NonExist(error_msg)
+
             return BalanceResponse(id=account.account_id, balance=account.balance)
         except (Exception, psycopg2.DatabaseError) as error:
             logger.error(f"Error: {error}")
@@ -68,6 +69,16 @@ class EventService:
         return account
 
     def process_transaction(self, body):
+        """NOTE
+        Commits occur at the service level, avoiding updating the database before
+        all transactions went through.
+
+        Example: If the withdrawal succeeds but the deposit fails, any changes
+        to the origin account must also be reverted manually to maintain
+        consistency.
+
+        Fix:
+        """
         try:
             event_type, destination, amount, origin = (
                 body.type,
@@ -84,6 +95,9 @@ class EventService:
 
                     EventService.publish_event(body)
 
+                    # Defer committing until all operations went through
+                    self.account_repository.commit()
+
                     return DepositResponse(
                         destination=BalanceResponse(
                             id=account.account_id, balance=account.balance
@@ -91,6 +105,10 @@ class EventService:
                     )
                 case "withdraw":
                     account = self.withdraw(origin, amount)
+
+                    # Defer committing until all operations went through
+                    self.account_repository.commit()
+
                     return WithdrawResponse(
                         origin=BalanceResponse(
                             id=account.account_id, balance=account.balance
@@ -101,6 +119,9 @@ class EventService:
                     destination_account = self.deposit(destination, amount)
 
                     EventService.publish_event(body)
+
+                    # Defer committing until all operations went through
+                    self.account_repository.commit()
 
                     return TransferResponse(
                         origin=BalanceResponse(
@@ -114,14 +135,6 @@ class EventService:
                     )
 
         except (Exception, psycopg2.DatabaseError) as error:
-            """ NOTE
-                Since commits occur at the repository level, the changes cannot
-                be rolled back automatically for the entire transaction. 
-
-                Example: If the withdrawal succeeds but the deposit fails, any changes
-                to the origin account must also be reverted manually to maintain
-                consistency.
-            """
             logger.error(f"Error: {error}")
             self.account_repository.rollback()
             return response.bad_request({"error": str(error)})
