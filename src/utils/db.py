@@ -47,7 +47,7 @@ class DatabaseWrapper:
             return self.db.balances[account_id]
         else:
             raise HTTPException(
-                status_code=400,
+                status_code=404,
                 detail="Can't withdraw. Amount is greater than current balance",
             )
 
