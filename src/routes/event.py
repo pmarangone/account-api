@@ -40,6 +40,8 @@ def event(event: EventSchema = Body(...)):
                 return response.bad_request(e)
 
         case "withdraw":
+            if not db_wrapper.contains_account(event.origin):
+                return response.not_found(0)
             try:
                 current_balance = db_wrapper.withdraw(event.origin, event.amount)
                 if current_balance:

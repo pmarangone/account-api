@@ -1,0 +1,25 @@
+# Dockerfile.autergon - minimal test image for Autergon code targets.
+#
+# Contract. This image bakes toolchain plus test dependencies only. The
+# codebase is added later at the prepared commit sha under /workspace/repo
+# by preparation, then snapshotted per code target version. Rebuild when
+# this file changes. Code changes alone never need a rebuild. Tests use an
+# in-memory mock, so no database ships here.
+# Modal build notes. Target linux/amd64. No EXPOSE, HEALTHCHECK, LABEL,
+# VOLUME, no USER switch, no ENTRYPOINT. Python ships in the base image.
+
+FROM --platform=linux/amd64 python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# git plus gh serve preparation fetch inside the prep sandbox. Test deps
+# are fastapi for HTTPException plus pytest as the runner.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git gh \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip \
+    && pip install fastapi==0.111.0 "pytest==8.*"
+
+WORKDIR /workspace/repo
