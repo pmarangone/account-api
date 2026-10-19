@@ -42,7 +42,7 @@ def event(event: EventSchema = Body(...)):
         case "withdraw":
             try:
                 current_balance = db_wrapper.withdraw(event.origin, event.amount)
-                if current_balance:
+                if current_balance is not None:
                     data = WithdrawResponse(
                         origin=BalanceResponse(id=event.origin, balance=current_balance)
                     )
